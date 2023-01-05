@@ -335,6 +335,7 @@ MODEL_SHELLYUNI_ID = "SHUNI-1"  # Shelly UNI
 MODEL_SHELLYUNI_PREFIX = "shellyuni"
 
 NUMBER_BOOST_TIME = "boost_time"
+NUMBER_CURRENT_BRIGHTNESS = "current_brightness"
 NUMBER_MINIMAL_VALVE_POSITION = "minimal_valve_position"
 NUMBER_VALVE_POSITION = "valve_position"
 
@@ -436,7 +437,9 @@ TOPIC_LIGHT_POWER = "~light/{light_id}/power"
 TOPIC_LIGHT_POWER_RGBW2_COLOR = "~color/{light_id}/power"
 TOPIC_LIGHT_POWER_RGBW2_WHITE = "~white/{light_id}/power"
 TOPIC_LIGHT_SET = "~light/{light_id}/set"
+TOPIC_LIGHT_SET_BRIGHTNESS_ONLY = "~light/0/set"
 TOPIC_LIGHT_STATUS = "~light/{light_id}/status"
+TOPIC_LIGHT_STATUS_BRIGHTNESS_ONLY = "~light/0/status"
 TOPIC_LOADERROR = "~loaderror"
 TOPIC_METER_CURRENT = "~emeter/{meter_id}/current"
 TOPIC_METER_ENERGY = "~emeter/{meter_id}/energy"
@@ -499,6 +502,7 @@ TPL_CLOUD = "{%if value_json.cloud.connected==true%}ON{%else%}OFF{%endif%}"
 TPL_COLOR_TEMP_WHITE_LIGHT = (
     "{{((1000000/(value_json.temp|int,2700)|max)|round(0,^floor^))}}"
 )
+TPL_COMMAND_SET_BRIGHTNESS_ONLY = "{^brightness^: {{(value|round)}} }"
 TPL_COMMAND_ON_WHITE_LIGHT = "{{^turn^:^on^{{%if brightness is defined%}},^brightness^:{{{{brightness|float|multiply(0.3922)|round}}}}{{%endif%}}{{%if transition is defined%}},^transition^:{{{{min(transition|multiply(1000), {max_transition})}}}}{{%endif%}}}}"
 TPL_COMMAND_ON_WHITE_LIGHT_DUO = "{{^turn^:^on^{{%if brightness is defined%}},^brightness^:{{{{brightness|float|multiply(0.3922)|round}}}}{{%endif%}}{{%if color_temp is defined%}},^temp^:{{{{(1000000/(color_temp|int))|round(0,^floor^)}}}}{{%endif%}}{{%if transition is defined%}},^transition^:{{{{min(transition|multiply(1000), {max_transition})}}}}{{%endif%}}}}"
 TPL_COMMAND_PROFILES = "{{value.split(^ ^)[-1]}}"
@@ -534,6 +538,7 @@ TPL_SCHEDULE = "{{value_json.thermostats.0.schedule}}"
 TPL_VALVE = "{{value.replace(^_^,^ ^)}}"
 TPL_VALVE_MIN_POSITION = "{{value_json.thermostats.0.valve_min_percent}}"
 TPL_VALVE_POSITION = "{{value_json.thermostats.0.pos}}"
+TPL_CURRENT_BRIGHTNESS = "{{value_json.brightness}}"
 TPL_WINDOW_STATE_REPORTING = (
     "{%if value_json.thermostats.0.open_window_report==true%}ON{%else%}OFF{%endif%}"
 )
@@ -646,6 +651,19 @@ OPTIONS_BUTTON_VALVE_OPEN = {
     KEY_PAYLOAD_PRESS: PL_OPEN,
     KEY_ENABLED_BY_DEFAULT: False,
     KEY_ICON: "mdi:progress-check",
+}
+OPTIONS_NUMBER_CURRENT_BRIGHTNESS = {
+    KEY_COMMAND_TOPIC: TOPIC_LIGHT_SET_BRIGHTNESS_ONLY,
+    KEY_COMMAND_TEMPLATE: TPL_COMMAND_SET_BRIGHTNESS_ONLY,
+    KEY_ENABLED_BY_DEFAULT: True,
+    KEY_MIN: 0,
+    KEY_MAX: 100,
+    KEY_STEP: 1,
+    KEY_ENTITY_CATEGORY: ENTITY_CATEGORY_CONFIG,
+    KEY_ICON: "mdi:brightness-percent",
+    KEY_STATE_TOPIC: TOPIC_LIGHT_STATUS_BRIGHTNESS_ONLY,
+    KEY_VALUE_TEMPLATE: TPL_CURRENT_BRIGHTNESS,
+    KEY_UNIT: UNIT_PERCENT,
 }
 OPTIONS_NUMBER_VALVE_POSITION = {
     KEY_COMMAND_TOPIC: TOPIC_COMMAND_VALVE_POSITION,
@@ -2216,6 +2234,9 @@ if model_id == MODEL_SHELLYDIMMER2_ID or dev_id_prefix == MODEL_SHELLYDIMMER2_PR
         SENSOR_ENERGY: OPTIONS_SENSOR_LIGHT_ENERGY,
         SENSOR_OVERPOWER_VALUE: OPTIONS_SENSOR_LIGHT_OVERPOWER_VALUE,
     }
+    numbers = {
+        NUMBER_CURRENT_BRIGHTNESS: OPTIONS_NUMBER_CURRENT_BRIGHTNESS,
+    }
     buttons = {BUTTON_RESTART: OPTIONS_BUTTON_RESTART}
     updates = {UPDATE_FIRMWARE: OPTIONS_UPDATE_FIRMWARE}
 
@@ -2498,6 +2519,7 @@ for number, number_options in numbers.items():
     payload = {
         KEY_NAME: f"{device_name} {format_entity_name(number)}",
         KEY_COMMAND_TOPIC: number_options[KEY_COMMAND_TOPIC],
+        KEY_COMMAND_TEMPLATE: number_options[KEY_COMMAND_TEMPLATE],
         KEY_MAX: number_options[KEY_MAX],
         KEY_MIN: number_options[KEY_MIN],
         KEY_STEP: number_options[KEY_STEP],
@@ -2522,7 +2544,7 @@ for number, number_options in numbers.items():
     if dev_id.lower() in ignored:
         payload = ""
 
-    mqtt_publish(config_topic, payload, retain)
+    mqtt_publish(config_topic, payload, retain, True)
 
 # switches (not relays)
 for switch, switch_options in switches.items():
